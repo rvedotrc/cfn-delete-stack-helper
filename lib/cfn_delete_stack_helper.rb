@@ -1,0 +1,177 @@
+# Copyright 2016 Rachel Evans
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+module CfnDeleteStackHelper
+
+  class Main
+    
+    def initialize(argv)
+      @argv = argv
+    end
+    
+    def run
+      unless @argv.count == 1
+        $stderr.puts "Usage: cfn-delete-stack-helper STACK_NAME_OR_ID"
+        exit 1
+      end
+
+      stack_name_or_id = @argv.first
+
+      report = Report.new(aws_client_config, stack_name_or_id)
+
+      print report.as_text
+      exit report.exitstatus
+    end
+
+    private
+
+    def aws_client_config
+      {
+        http_proxy: get_proxy,
+      }
+    end
+     
+    def get_proxy
+      e = ENV['https_proxy']
+      e = "https://#{e}" if e && !e.empty? && !e.start_with?('http')
+      return e
+    end
+
+  end
+
+  class Report
+
+    attr_reader :stack_name
+
+    def initialize(aws_client_config, stack_name)
+      @stack_name = stack_name
+      @use_colour = $stdout.isatty
+
+      require 'aws-sdk'
+      cfn_client = Aws::CloudFormation::Client.new(aws_client_config)
+
+      # raises Aws::CloudFormation::Errors::ValidationError if no such stack.  Fine, for now.
+      description = cfn_client.describe_stacks(stack_name: stack_name)
+
+      if description.stacks.count > 1
+        raise "Expected 0 or 1 stacks, found #{description.stacks.count}: #{description.inspect}"
+      end
+
+      description = description.stacks.first
+
+      puts <<EOF
+Stack name: #{description.stack_name}
+Stack ID:   #{description.stack_id}
+Status:     #{description.stack_status}
+
+EOF
+
+      resources = cfn_client.describe_stack_resources(stack_name: description.stack_id)
+      resources = resources.stack_resources
+
+      header_row = {
+        cells: [ "" ].concat(%w[ resource_type resource_status logical_resource_id physical_resource_id ]),
+      }
+
+      table = [ header_row ]
+
+      table.concat(resources.map do |res|
+        already_deleted = (%w[ DELETE_COMPLETE DELETE_SKIPPED ].include? res.resource_status)
+        cells = [
+          (already_deleted ? "" : "->"),
+          res.resource_type,
+          res.resource_status,
+          res.logical_resource_id,
+          res.physical_resource_id,
+        ]
+        colour = (already_deleted ? nil : :red)
+        { cells: cells, colour: colour }
+      end.to_a)
+
+      puts draw_table(table)
+      puts ""
+
+      case description.stack_status
+      when "DELETE_COMPLETE"
+        puts "Stack is already deleted.  Nothing to do."
+        return
+      when "ROLLBACK_COMPLETE"
+        puts "Stack creation failed, but was rolled back.  Nothing to do."
+        return
+      when "ROLLBACK_FAILED", "DELETE_FAILED"
+        puts "WARNING: Stack rollback/deletion failed; stack deletion is the only way forward."
+      end
+
+      # TODO, try and predict if any resource deletions (of resources that are
+      # not already deleted) will fail
+
+      # TODO, advise which resources cannot be re-created with the same IDs, if deleted
+
+      puts "Are you sure you want to (try to) delete any remaining resources, plus the stack itself?"
+      puts ""
+      print "Enter YES to proceed, anything else to abort: "
+      answer = $stdin.readline
+      unless answer and answer.chomp == "YES"
+        puts "Aborted!"
+        @exitstatus = 0
+        return
+      end
+      puts ""
+
+      puts "TODO, the deletion!"
+      puts ""
+
+      puts "TODO, tail the stack log"
+
+      most_recent_event = cfn_client.describe_stack_events(stack_name: description.stack_id).data.stack_events.first
+      since = most_recent_event.timestamp.to_s
+      system "cfn-events", "--since", since, "-w", description.stack_id
+
+      @exitstatus = $?.exitstatus
+    end
+
+    def as_text
+      ""
+    end
+
+    def exitstatus
+      @exitstatus
+    end
+
+    def draw_table(rows)
+      return "" if rows.empty?
+      column_count = rows.first[:cells].count
+
+      max_widths_by_column = column_count.times.map do |n|
+        rows.map {|row| row[:cells][n].to_s.length}.max
+      end
+
+      format_string = max_widths_by_column.map {|w| "%-#{w}s"}.join("  ")
+
+      rows.map {|row|
+        text = format_string % row[:cells]
+        text.sub!(/ *$/, "")
+
+        if row[:colour] and @use_colour
+          require 'colored'
+          text = text.send(row[:colour])
+        end
+
+        text
+      }
+    end
+
+  end
+
+end
