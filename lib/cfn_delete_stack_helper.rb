@@ -118,7 +118,7 @@ EOF
 
       # TODO, advise which resources cannot be re-created with the same IDs, if deleted
 
-      puts "Are you sure you want to (try to) delete any remaining resources, plus the stack itself?"
+      puts "Are you sure you want to request deletion of any remaining resources, plus the stack itself?"
       puts ""
       print "Enter YES to proceed, anything else to abort: "
       answer = $stdin.readline
@@ -129,10 +129,9 @@ EOF
       end
       puts ""
 
-      puts "TODO, the deletion!"
+      cfn_client.delete_stack(stack_name: description.stack_id)
+      puts "Stack deletion requested"
       puts ""
-
-      puts "TODO, tail the stack log"
 
       most_recent_event = cfn_client.describe_stack_events(stack_name: description.stack_id).data.stack_events.first
       since = most_recent_event.timestamp.to_s

@@ -22,13 +22,12 @@ What it does
 
 If confirmed, then it continues:
 
- * requests deletion of the stack (well actually no it doesn't yet)
+ * requests deletion of the stack
  * tails the stack events, until the stack reaches a steady state.
 
 Future development
 ------------------
 
- * definitely: actually request deletion of the stack
  * probably: deletion failure prediction (for certain kinds of resources only; for example, non-empty S3 buckets)
  * maybe: advising on resources which, if deleted and manually re-created, won't get the same ID (maybe)
  * maybe: machine-readable output
