@@ -119,7 +119,12 @@ module CfnDeleteStackHelper
       puts "Are you sure you want to request deletion of any remaining resources, plus the stack itself?"
       puts ""
       print "Enter YES to proceed, anything else to abort: "
-      answer = $stdin.readline
+      answer = begin
+                 $stdin.readline
+               rescue EOFError
+                 puts "(EOF on standard input)"
+                 nil
+               end
       unless answer and answer.chomp == "YES"
         puts "Aborted!"
         puts ""
