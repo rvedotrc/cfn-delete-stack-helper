@@ -55,6 +55,7 @@ module CfnDeleteStackHelper
     attr_reader :stack_name
 
     def initialize(aws_client_config, stack_name)
+      @aws_client_config = aws_client_config
       @stack_name = stack_name
       @use_colour = $stdout.isatty
 
@@ -75,13 +76,7 @@ module CfnDeleteStackHelper
       end
 
       description = description.stacks.first
-
-      puts <<EOF
-Stack name: #{description.stack_name}
-Stack ID:   #{description.stack_id}
-Status:     #{description.stack_status}
-
-EOF
+      puts stack_header(description)
 
       resources = cfn_client.describe_stack_resources(stack_name: description.stack_id)
       resources = resources.stack_resources
@@ -144,6 +139,28 @@ EOF
       system "cfn-events", "--since", since, "-w", description.stack_id
 
       @exitstatus = $?.exitstatus
+    end
+
+    def stack_header(description)
+      arn = description.stack_id
+      region = arn.split(':')[3]
+      account_id = arn.split(':')[4]
+      account_alias = get_account_alias(account_id)
+
+      <<EOF
+
+Stack ARN:  #{arn}
+Account:    #{account_id}#{account_alias ? " (#{account_alias})" : ""}
+Region:     #{region}
+Stack name: #{description.stack_name}
+Status:     #{description.stack_status}
+
+EOF
+    end
+
+    def get_account_alias(account_id)
+      ans = Aws::IAM::Client.new(@aws_client_config).list_account_aliases
+      ans.account_aliases.first
     end
 
     def as_text
