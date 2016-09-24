@@ -27,11 +27,8 @@ module CfnDeleteStackHelper
       end
 
       stack_name_or_id = @argv.first
-
-      report = Report.new(aws_client_config, stack_name_or_id)
-
-      print report.as_text
-      exit report.exitstatus
+      run = Runner.new(aws_client_config, stack_name_or_id)
+      exit run.exitstatus
     end
 
     private
@@ -50,7 +47,7 @@ module CfnDeleteStackHelper
 
   end
 
-  class Report
+  class Runner
 
     attr_reader :stack_name
 
@@ -125,6 +122,7 @@ module CfnDeleteStackHelper
       answer = $stdin.readline
       unless answer and answer.chomp == "YES"
         puts "Aborted!"
+        puts ""
         @exitstatus = 0
         return
       end
@@ -161,10 +159,6 @@ EOF
     def get_account_alias(account_id)
       ans = Aws::IAM::Client.new(@aws_client_config).list_account_aliases
       ans.account_aliases.first
-    end
-
-    def as_text
-      ""
     end
 
     def exitstatus
