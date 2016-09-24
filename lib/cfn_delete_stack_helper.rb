@@ -147,11 +147,13 @@ module CfnDeleteStackHelper
 
       <<EOF
 
-Stack ARN:  #{arn}
-Account:    #{account_id}#{account_alias ? " (#{account_alias})" : ""}
-Region:     #{region}
-Stack name: #{description.stack_name}
-Status:     #{description.stack_status}
+Stack ARN:    #{arn}
+Account:      #{account_id}#{account_alias ? " (#{account_alias})" : ""}
+Region:       #{region}
+Stack name:   #{description.stack_name}
+Status:       #{description.stack_status}
+Created:      #{description.creation_time}
+Last updated: #{description.last_updated_time || "never"}
 
 EOF
     end
