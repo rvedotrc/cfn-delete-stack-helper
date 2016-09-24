@@ -61,8 +61,14 @@ module CfnDeleteStackHelper
       require 'aws-sdk'
       cfn_client = Aws::CloudFormation::Client.new(aws_client_config)
 
-      # raises Aws::CloudFormation::Errors::ValidationError if no such stack.  Fine, for now.
-      description = cfn_client.describe_stacks(stack_name: stack_name)
+      description = begin
+                      cfn_client.describe_stacks(stack_name: stack_name)
+                    rescue Aws::CloudFormation::Errors::ValidationError => e
+                      # e.g. "Stack with id some-name does not exist"
+                      $stderr.puts "ERROR: #{e.message}"
+                      @exitstatus = 1
+                      return
+                    end
 
       if description.stacks.count > 1
         raise "Expected 0 or 1 stacks, found #{description.stacks.count}: #{description.inspect}"
