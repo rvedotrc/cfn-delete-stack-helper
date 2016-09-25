@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'cfn-delete-stack-helper'
-  s.version     = '0.1.1'
+  s.version     = '0.1.2'
   s.date        = '2016-09-23'
   s.summary     = 'Safety checks before deleting an AWS CloudFormation stack'
   s.description = '
