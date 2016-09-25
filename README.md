@@ -27,6 +27,20 @@ If confirmed, then it continues:
  * requests deletion of the stack
  * tails the stack events, until the stack reaches a steady state.
 
+Permissions
+-----------
+
+Assumes that you have permission to do everything required.  As well as
+cloudformation:DeleteStack (obviously), the required permissions include
+Get/List/Describe calls for various services.
+
+Configuration
+-------------
+
+Uses the default ruby AWS SDK settings, hence respects environment variables
+including $AWS_REGION, $AWS_ACCESS_KEY_ID, $AWS_SECRET_ACCESS_KEY and others.
+Additionally, respects $https_proxy.
+
 Future development
 ------------------
 
