@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require_relative 'cfn_delete_stack_helper/highlighting_text_table'
+
 module CfnDeleteStackHelper
 
   class Main
@@ -73,11 +75,65 @@ module CfnDeleteStackHelper
       end
 
       description = description.stacks.first
-      puts stack_header(description)
+      show_stack_header(description)
 
       resources = cfn_client.describe_stack_resources(stack_name: description.stack_id)
       resources = resources.stack_resources
+      show_resource_list(resources)
 
+      case description.stack_status
+      when "DELETE_COMPLETE"
+        puts "Stack is already deleted.  Nothing to do."
+        return
+      when "ROLLBACK_COMPLETE"
+        puts "Stack creation failed, but was rolled back.  Nothing to do."
+        return
+      when "ROLLBACK_FAILED", "DELETE_FAILED"
+        puts "Stack is in #{description.stack_status} status; stack deletion is the only way forward."
+        puts ""
+      end
+
+      # TODO, try and predict if any resource deletions (of resources that are
+      # not already deleted) will fail
+
+      # TODO, advise which resources cannot be re-created with the same IDs, if deleted
+
+      unless prompted_proceed?
+        @exitstatus = 0
+        return
+      end
+
+      cfn_client.delete_stack(stack_name: description.stack_id)
+      puts "Stack deletion requested"
+      puts ""
+
+      most_recent_event = cfn_client.describe_stack_events(stack_name: description.stack_id).data.stack_events.first
+      since = most_recent_event.timestamp.to_s
+      system "cfn-events", "--since", since, "-w", description.stack_id
+
+      @exitstatus = $?.exitstatus
+    end
+
+    def show_stack_header(description)
+      arn = description.stack_id
+      region = arn.split(':')[3]
+      account_id = arn.split(':')[4]
+      account_alias = get_account_alias(account_id)
+
+      puts <<EOF
+
+Stack ARN:    #{arn}
+Account:      #{account_id}#{account_alias ? " (#{account_alias})" : ""}
+Region:       #{region}
+Stack name:   #{description.stack_name}
+Status:       #{description.stack_status}
+Created:      #{description.creation_time}
+Last updated: #{description.last_updated_time || "never"}
+
+EOF
+    end
+
+    def show_resource_list(resources)
       header_row = {
         cells: [ "" ].concat(%w[ resource_type resource_status logical_resource_id physical_resource_id ]),
       }
@@ -97,25 +153,16 @@ module CfnDeleteStackHelper
         { cells: cells, colour: colour }
       end.to_a)
 
-      puts draw_table(table)
+      puts CfnDeleteStackHelper::HighlightingTextTable.new(use_colour: @use_colour).draw_table(table)
       puts ""
+    end
 
-      case description.stack_status
-      when "DELETE_COMPLETE"
-        puts "Stack is already deleted.  Nothing to do."
-        return
-      when "ROLLBACK_COMPLETE"
-        puts "Stack creation failed, but was rolled back.  Nothing to do."
-        return
-      when "ROLLBACK_FAILED", "DELETE_FAILED"
-        puts "WARNING: Stack rollback/deletion failed; stack deletion is the only way forward."
-      end
+    def get_account_alias(account_id)
+      ans = Aws::IAM::Client.new(@aws_client_config).list_account_aliases
+      ans.account_aliases.first
+    end
 
-      # TODO, try and predict if any resource deletions (of resources that are
-      # not already deleted) will fail
-
-      # TODO, advise which resources cannot be re-created with the same IDs, if deleted
-
+    def prompted_proceed?
       puts "Are you sure you want to request deletion of any remaining resources, plus the stack itself?"
       puts ""
       print "Enter YES to proceed, anything else to abort: "
@@ -128,71 +175,15 @@ module CfnDeleteStackHelper
       unless answer and answer.chomp == "YES"
         puts "Aborted!"
         puts ""
-        @exitstatus = 0
-        return
+        return false
       end
+
       puts ""
-
-      cfn_client.delete_stack(stack_name: description.stack_id)
-      puts "Stack deletion requested"
-      puts ""
-
-      most_recent_event = cfn_client.describe_stack_events(stack_name: description.stack_id).data.stack_events.first
-      since = most_recent_event.timestamp.to_s
-      system "cfn-events", "--since", since, "-w", description.stack_id
-
-      @exitstatus = $?.exitstatus
-    end
-
-    def stack_header(description)
-      arn = description.stack_id
-      region = arn.split(':')[3]
-      account_id = arn.split(':')[4]
-      account_alias = get_account_alias(account_id)
-
-      <<EOF
-
-Stack ARN:    #{arn}
-Account:      #{account_id}#{account_alias ? " (#{account_alias})" : ""}
-Region:       #{region}
-Stack name:   #{description.stack_name}
-Status:       #{description.stack_status}
-Created:      #{description.creation_time}
-Last updated: #{description.last_updated_time || "never"}
-
-EOF
-    end
-
-    def get_account_alias(account_id)
-      ans = Aws::IAM::Client.new(@aws_client_config).list_account_aliases
-      ans.account_aliases.first
+      true
     end
 
     def exitstatus
       @exitstatus
-    end
-
-    def draw_table(rows)
-      return "" if rows.empty?
-      column_count = rows.first[:cells].count
-
-      max_widths_by_column = column_count.times.map do |n|
-        rows.map {|row| row[:cells][n].to_s.length}.max
-      end
-
-      format_string = max_widths_by_column.map {|w| "%-#{w}s"}.join("  ")
-
-      rows.map {|row|
-        text = format_string % row[:cells]
-        text.sub!(/ *$/, "")
-
-        if row[:colour] and @use_colour
-          require 'colored'
-          text = text.send(row[:colour])
-        end
-
-        text
-      }
     end
 
   end

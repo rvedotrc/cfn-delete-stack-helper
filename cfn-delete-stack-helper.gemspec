@@ -27,6 +27,7 @@ cfn-delete-stack-helper
 
   s.files       = %w[
 lib/cfn_delete_stack_helper.rb
+lib/cfn_delete_stack_helper/highlighting_text_table.rb
   ] + s.executables.map {|s| "bin/"+s}
 
   s.require_paths = ["lib"]
