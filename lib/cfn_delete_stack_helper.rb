@@ -13,6 +13,7 @@
 # limitations under the License.
 
 require_relative 'cfn_delete_stack_helper/highlighting_text_table'
+require_relative 'cfn_delete_stack_helper/resource_in_use_checker'
 
 module CfnDeleteStackHelper
 
@@ -93,8 +94,7 @@ module CfnDeleteStackHelper
         puts ""
       end
 
-      # TODO, try and predict if any resource deletions (of resources that are
-      # not already deleted) will fail
+      ResourceInUseChecker.new(description, resources, aws_client_config, @use_colour).run
 
       # TODO, advise which resources cannot be re-created with the same IDs, if deleted
 
@@ -153,7 +153,7 @@ EOF
         { cells: cells, colour: colour }
       end.to_a)
 
-      puts CfnDeleteStackHelper::HighlightingTextTable.new(use_colour: @use_colour).draw_table(table)
+      puts HighlightingTextTable.new(use_colour: @use_colour).draw_table(table)
       puts ""
     end
 

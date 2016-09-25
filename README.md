@@ -18,6 +18,8 @@ What it does
  * shows the current state of each of the stack's resources;
  * highlights which resources are likely to be affected if you proceed
    (i.e. those resources which have not already been deleted)
+ * checks to see if there any reasons (that it knows of) why those deletions
+   will fail
  * asks if you want to proceed with deletion.
 
 If confirmed, then it continues:
@@ -28,8 +30,8 @@ If confirmed, then it continues:
 Future development
 ------------------
 
- * probably: deletion failure prediction (for certain kinds of resources only; for example, non-empty S3 buckets)
- * maybe: advising on resources which, if deleted and manually re-created, won't get the same ID (maybe)
+ * maybe: more failure prediction
+ * maybe: advising on resources which, if deleted (and then you wanted to repair the damage by manually re-creating them), won't get the same ID
  * maybe: machine-readable output
  * maybe: batch mode
 
