@@ -1,6 +1,11 @@
+lib = File.expand_path('../lib', __FILE__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require 'cfn_delete_stack_helper/version'
+
 Gem::Specification.new do |s|
   s.name        = 'cfn-delete-stack-helper'
-  s.version     = '0.1.2'
+  s.version     = CfnDeleteStackHelper::VERSION
+  s.licenses    = [ 'Apache-2.0' ]
   s.date        = '2016-09-23'
   s.summary     = 'Safety checks before deleting an AWS CloudFormation stack'
   s.description = '
@@ -30,11 +35,12 @@ lib/cfn_delete_stack_helper/highlighting_text_table.rb
 lib/cfn_delete_stack_helper/resource_in_use_checker/resource_type/aws_ec2_securitygroup.rb
 lib/cfn_delete_stack_helper/resource_in_use_checker/resource_type/aws_s3_bucket.rb
 lib/cfn_delete_stack_helper/resource_in_use_checker.rb
+lib/cfn_delete_stack_helper/version.rb
 lib/cfn_delete_stack_helper.rb
   ] + s.executables.map {|s| "bin/"+s}
 
   s.require_paths = ["lib"]
 
-  s.add_dependency 'aws-sdk', "~> 2"
-  s.add_dependency 'cloudsaw', ">= 0.4"
+  s.add_dependency 'aws-sdk', '~> 2.0'
+  s.add_dependency 'cfn-events', '~> 0.1'
 end

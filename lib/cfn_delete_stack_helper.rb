@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require 'cfn-events'
+
 require_relative 'cfn_delete_stack_helper/highlighting_text_table'
 require_relative 'cfn_delete_stack_helper/resource_in_use_checker'
+require_relative 'cfn_delete_stack_helper/version'
 
 module CfnDeleteStackHelper
 
@@ -39,6 +42,7 @@ module CfnDeleteStackHelper
     def aws_client_config
       {
         http_proxy: get_proxy,
+        user_agent_suffix: "cfn-delete-stack-helper #{VERSION}",
       }
     end
      
@@ -85,10 +89,11 @@ module CfnDeleteStackHelper
       case description.stack_status
       when "DELETE_COMPLETE"
         puts "Stack is already deleted.  Nothing to do."
+        @exitstatus = 0
         return
       when "ROLLBACK_COMPLETE"
-        puts "Stack creation failed, but was rolled back.  Nothing to do."
-        return
+        puts "Stack creation failed, but was successfully rolled back; stack deletion is the only way forward."
+        puts ""
       when "ROLLBACK_FAILED", "DELETE_FAILED"
         puts "Stack is in #{description.stack_status} status; stack deletion is the only way forward."
         puts ""
@@ -108,10 +113,17 @@ module CfnDeleteStackHelper
       puts ""
 
       most_recent_event = cfn_client.describe_stack_events(stack_name: description.stack_id).data.stack_events.first
-      since = most_recent_event.timestamp.to_s
-      system "cfn-events", "--since", since, "-w", description.stack_id
+      @exitstatus = watch_stack_events description.stack_id, cfn_client, most_recent_event.timestamp
+    end
 
-      @exitstatus = $?.exitstatus
+    def watch_stack_events(stack_id, cfn_client, since)
+      config = CfnEvents::Config.new
+      config.cfn_client = cfn_client
+      config.stack_name_or_id = stack_id
+      config.wait = true
+      config.since = since
+
+      rc = CfnEvents::Runner.new(config).run
     end
 
     def show_stack_header(description)

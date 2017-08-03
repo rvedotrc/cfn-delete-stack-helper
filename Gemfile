@@ -1,6 +1,5 @@
-source "https://rubygems.org" do
-  gem "aws-sdk", "~> 2"
+source 'https://rubygems.org' do
+  gem 'aws-sdk', '~> 2.0'
   gem 'colored', '~> 1.0'
+  gem 'cfn-events', '~> 0.1'
 end
-
-gem 'cloudsaw', '>= 0.4', :git => 'https://github.com/rvedotrc/cloudsaw.git', :tag => 'cloudsaw-0.4.2'
